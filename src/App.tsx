@@ -1,26 +1,75 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { useRef, useState } from "react";
+import {
+  FilesetResolver,
+  ObjectDetector,
+  Detection,
+} from "@mediapipe/tasks-vision";
+import test from "./assets/test.jpg";
+import HightLights from "./components/HightLights";
 
-function App() {
+export default function App() {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const detectorRef = useRef<ObjectDetector | null>(null);
+  const [detections, setDetections] = useState<Detection[] | null>(null);
+
+  const loadModel = async () => {
+    if (detectorRef.current) return;
+
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+    );
+
+    const detector = await ObjectDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite",
+        delegate: "GPU",
+      },
+      scoreThreshold: 0.5,
+    });
+
+    detectorRef.current = detector;
+  };
+
+  const handleDetect = async () => {
+    await loadModel();
+
+    const detector = detectorRef.current;
+    const img = imgRef.current;
+
+    if (detector && img) {
+      const result = await detector.detect(img);
+      setDetections(result.detections);
+      console.log("one");
+    }
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+        height: "100vh",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+        }}
+      >
+        <img
+          ref={imgRef}
+          src={test}
+          alt="dog"
+          onClick={handleDetect}
+          style={{ maxWidth: "50%", display: "block" }}
+        />
+        {detections ? (
+          <HightLights detections={detections} imgRef={imgRef.current} />
+        ) : null}
+      </div>
     </div>
   );
 }
-
-export default App;
